@@ -10,10 +10,10 @@ module.exports = {
     ecmaVersion: 13,
   },
   rules: {
+    'prettier/prettier': ['error', { endOfLine: 'auto' }],
     indent: ['error', 2],
     quotes: ['error', 'single'],
     semi: ['error', 'always'],
-    'prettier/prettier': 'error',
   },
   ignorePatterns: ['03-files-in-folder/secret-folder/**/*.js'],
 };
