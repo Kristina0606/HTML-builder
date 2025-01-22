@@ -1,4 +1,4 @@
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
 
 const projectDist = path.join(__dirname, 'project-dist');
@@ -10,114 +10,76 @@ const outputFile = path.join(projectDist, 'index.html');
 const outputStylesFile = path.join(projectDist, 'style.css');
 const outputAssetsFolder = path.join(projectDist, 'assets');
 
-if (!fs.existsSync(projectDist)) {
-  fs.mkdirSync(projectDist);
-}
-
-function compileStyles() {
-  fs.readdir(stylesFolder, (err, files) => {
-    if (err) {
-      return console.error('ошибка чтения:', err);
+async function compileStyles() {
+  try {
+    if (
+      !(await fs
+        .access(projectDist)
+        .then(() => true)
+        .catch(() => false))
+    ) {
+      await fs.mkdir(projectDist);
     }
 
+    const files = await fs.readdir(stylesFolder);
     const cssFiles = files.filter((file) => path.extname(file) === '.css');
-    const stylesArray = [];
+    const stylesArray = await Promise.all(
+      cssFiles.map(async (file) => {
+        const filePath = path.join(stylesFolder, file);
+        return await fs.readFile(filePath, 'utf-8');
+      }),
+    );
 
-    cssFiles.forEach((file) => {
-      const filePath = path.join(stylesFolder, file);
-      fs.readFile(filePath, 'utf-8', (err, fileContent) => {
-        if (err) {
-          return console.error('ошибка чтения файла:', err);
-        }
-        stylesArray.push(fileContent);
-
-        if (stylesArray.length === cssFiles.length) {
-          const bundleContent = stylesArray.join('\n');
-          fs.writeFile(outputStylesFile, bundleContent, 'utf-8', (err) => {
-            if (err) {
-              return console.error('ошибка записи файла:', err);
-            }
-            console.log('стили скомпилированы в style.css');
-          });
-        }
-      });
-    });
-  });
+    const bundleContent = stylesArray.join('\n');
+    await fs.writeFile(outputStylesFile, bundleContent, 'utf-8');
+    console.log('стили скомпилированы в style.css');
+  } catch (err) {
+    console.error('ошибка:', err);
+  }
 }
 
-function copyAssets(srcFolder, destFolder) {
-  fs.mkdir(destFolder, { recursive: true }, (err) => {
-    if (err) {
-      return console.error('ошибка создания папки assets:', err);
-    }
+async function copyAssets(srcFolder, destFolder) {
+  try {
+    await fs.mkdir(destFolder, { recursive: true });
 
-    fs.readdir(srcFolder, (err, files) => {
-      if (err) {
-        return console.error('ошибка чтения папки assets:', err);
-      }
-
-      files.forEach((file) => {
+    const files = await fs.readdir(srcFolder);
+    await Promise.all(
+      files.map(async (file) => {
         const srcPath = path.join(srcFolder, file);
         const destPath = path.join(destFolder, file);
+        const stats = await fs.stat(srcPath);
 
-        fs.stat(srcPath, (err, stats) => {
-          if (err) {
-            return console.error('ошибка получения информации о файле:', err);
-          }
-
-          if (stats.isDirectory()) {
-            copyAssets(srcPath, destPath);
-          } else {
-            fs.copyFile(srcPath, destPath, (err) => {
-              if (err) {
-                return console.error('ошибка копирования файла:', err);
-              }
-            });
-          }
-        });
-      });
-    });
-  });
+        if (stats.isDirectory()) {
+          await copyAssets(srcPath, destPath);
+        } else {
+          await fs.copyFile(srcPath, destPath);
+        }
+      }),
+    );
+  } catch (err) {
+    console.error('ошибка:', err);
+  }
 }
 
-function buildHTML() {
-  fs.readFile(templateFile, 'utf-8', (err, templateContent) => {
-    if (err) {
-      return console.error('ошибка чтения файла template.html:', err);
+async function buildHTML() {
+  try {
+    const templateContent = await fs.readFile(templateFile, 'utf-8');
+    const files = await fs.readdir(componentsFolder);
+    let htmlContent = templateContent;
+
+    for (const file of files) {
+      const componentName = path.basename(file, '.html');
+      const componentPath = path.join(componentsFolder, file);
+      const componentContent = await fs.readFile(componentPath, 'utf-8');
+      const tag = `{{${componentName}}}`;
+      htmlContent = htmlContent.replace(new RegExp(tag, 'g'), componentContent);
     }
 
-    fs.readdir(componentsFolder, (err, files) => {
-      if (err) {
-        return console.error('ошибка чтения папки components:', err);
-      }
-
-      let htmlContent = templateContent;
-
-      files.forEach((file) => {
-        const componentName = path.basename(file, '.html');
-        const componentPath = path.join(componentsFolder, file);
-
-        fs.readFile(componentPath, 'utf-8', (err, componentContent) => {
-          if (err) {
-            return console.error('ошибка чтения файла компонента:', err);
-          }
-
-          const tag = `{{${componentName}}}`;
-          htmlContent = htmlContent.replace(
-            new RegExp(tag, 'g'),
-            componentContent,
-          );
-
-          fs.writeFile(outputFile, htmlContent, 'utf-8', (err) => {
-            if (err) {
-              return console.error('ошибка записи файла index.html:', err);
-            }
-            console.log('HTML-страница создана в index.html');
-          });
-        });
-      });
-    });
-  });
+    await fs.writeFile(outputFile, htmlContent, 'utf-8');
+    console.log('HTML-страница создана в index.html');
+  } catch (err) {
+    console.error('ошибка:', err);
+  }
 }
 
 compileStyles();
