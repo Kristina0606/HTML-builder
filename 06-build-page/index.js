@@ -35,20 +35,20 @@ function compileStyles() {
   });
 }
 
-function copyAssets() {
-  fs.mkdir(outputAssetsFolder, { recursive: true }, (err) => {
+function copyAssets(srcFolder, destFolder) {
+  fs.mkdir(destFolder, { recursive: true }, (err) => {
     if (err) {
       return console.error('ошибка создания папки assets:', err);
     }
 
-    fs.readdir(assetsFolder, (err, files) => {
+    fs.readdir(srcFolder, (err, files) => {
       if (err) {
         return console.error('ошибка чтения папки assets:', err);
       }
 
       files.forEach((file) => {
-        const srcPath = path.join(assetsFolder, file);
-        const destPath = path.join(outputAssetsFolder, file);
+        const srcPath = path.join(srcFolder, file);
+        const destPath = path.join(destFolder, file);
 
         fs.stat(srcPath, (err, stats) => {
           if (err) {
@@ -111,5 +111,5 @@ function buildHTML() {
 }
 
 compileStyles();
-copyAssets();
+copyAssets(assetsFolder, outputAssetsFolder);
 buildHTML();
