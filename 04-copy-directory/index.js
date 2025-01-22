@@ -17,14 +17,35 @@ fs.readdir(folderPath, { withFileTypes: true }, (err, files) => {
     return;
   }
 
-  files.forEach((file) => {
-    if (file.isFile()) {
-      let pathToFile = path.join(folderPath, file.name);
-      let newPathToFile = path.join(newFolderPath, file.name);
-      fs.copyFile(pathToFile, newPathToFile, (err) => {
-        if (err) throw err;
-        console.log('Файл успешно скопирован');
-      });
+  const originalFiles = files
+    .filter((file) => file.isFile())
+    .map((file) => file.name);
+
+  fs.readdir(newFolderPath, { withFileTypes: true }, (err, copiedFiles) => {
+    if (err) {
+      console.error(err);
+      return;
     }
+
+    copiedFiles.forEach((file) => {
+      if (file.isFile() && !originalFiles.includes(file.name)) {
+        let pathToFile = path.join(newFolderPath, file.name);
+        fs.unlink(pathToFile, (err) => {
+          if (err) throw err;
+          console.log(`Файл ${file.name} успешно удален`);
+        });
+      }
+    });
+
+    files.forEach((file) => {
+      if (file.isFile()) {
+        let pathToFile = path.join(folderPath, file.name);
+        let newPathToFile = path.join(newFolderPath, file.name);
+        fs.copyFile(pathToFile, newPathToFile, (err) => {
+          if (err) throw err;
+          console.log(`Файл ${file.name} успешно скопирован`);
+        });
+      }
+    });
   });
 });
