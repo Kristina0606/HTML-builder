@@ -25,13 +25,23 @@ function compileStyles() {
 
     cssFiles.forEach((file) => {
       const filePath = path.join(stylesFolder, file);
-      const fileContent = fs.readFileSync(filePath, 'utf-8');
-      stylesArray.push(fileContent);
-    });
+      fs.readFile(filePath, 'utf-8', (err, fileContent) => {
+        if (err) {
+          return console.error('ошибка чтения файла:', err);
+        }
+        stylesArray.push(fileContent);
 
-    const bundleContent = stylesArray.join('\n');
-    fs.writeFileSync(outputStylesFile, bundleContent, 'utf-8');
-    console.log('стили скомпилированы в style.css');
+        if (stylesArray.length === cssFiles.length) {
+          const bundleContent = stylesArray.join('\n');
+          fs.writeFile(outputStylesFile, bundleContent, 'utf-8', (err) => {
+            if (err) {
+              return console.error('ошибка записи файла:', err);
+            }
+            console.log('стили скомпилированы в style.css');
+          });
+        }
+      });
+    });
   });
 }
 
